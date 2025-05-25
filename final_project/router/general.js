@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios')
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
@@ -25,42 +26,88 @@ public_users.post("/register", (req,res) => {
 });
 
 // Get the book list available in the shop
-public_users.get('/',function (req, res) {  
-  res.send(JSON.stringify(books, null, 4));
+const getAllBooks = () => Promise.resolve(books)
+
+public_users.get('/', async function (req, res) {
+  try {
+    const allBooks = await getAllBooks();
+    //res.send(JSON.stringify(books, null, 4));
+    return res.status(200).json(allBooks);
+  } catch (error) {
+    return res.status(500).json({message: "Unable to fetch all books" + error});
+  }
 });
 
 // Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-  const isbn = req.params.isbn
-  res.send(books[isbn])
+const getBookByISBN = (isbn) => Promise.resolve(books[isbn]);
+
+public_users.get('/isbn/:isbn', async function (req, res) {
+  const isbn = req.params.isbn;
+  try {
+    const currBook = await getBookByISBN(isbn);
+    if (currBook) {
+        return res.status(200).json(currBook);
+    } else {
+        return res.status(404).json({message: "Book unavailable"});
+    }
+  } catch (error) {
+    return res.status(500).json({message: "Unable to fetch book by ISBN" + error});
+  }
+//   res.send(books[isbn])
  });
-  
+
 // Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-    const author = req.params.author
-    const finalDetails = new Map()
+const getAllBooksByAuthor = (author) => {
+    const finalDetails = new Map();
 
     for (isbn in books) {
         if (books[isbn].author === author) {
-            finalDetails.set(isbn, books[isbn])
+            finalDetails.set(isbn, books[isbn]);
         }
     }
+    return finalDetails;
+}
 
-    res.send(JSON.stringify(Object.fromEntries(finalDetails), null, 4))
+public_users.get('/author/:author', async function (req, res) {
+    const author = req.params.author;
+    try {
+        const currBooksByAuthor = await getAllBooksByAuthor(author);
+        if (currBooksByAuthor.size === 0 ) {
+            return res.status(404).json({message: "Books by author unavailable"});
+        } else {
+            return res.status(200).json(Object.fromEntries(currBooksByAuthor));
+        }
+        // res.send(JSON.stringify(Object.fromEntries(finalDetails), null, 4))
+    } catch (error) {
+        return res.status(500).json({message: "Unable to fetch book by author" + error});
+    }
 });
 
 // Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-    const title = req.params.title
-    const finalDetails = new Map()
+const getAllBooksByTitle = (title) => {
+    const finalDetails = new Map();
 
     for (isbn in books) {
         if (books[isbn].title === title) {
-            finalDetails.set(isbn, books[isbn])
+            finalDetails.set(isbn, books[isbn]);
         }
     }
+    return finalDetails;
+}
 
-    res.send(JSON.stringify(Object.fromEntries(finalDetails), null, 4))
+public_users.get('/title/:title', async function (req, res) {
+    const title = req.params.title;
+    try {
+        const currBooksByTitle = await getAllBooksByTitle(title);
+        if (currBooksByTitle.size === 0 ) {
+            return res.status(404).json({message: "Books by title unavailable"});
+        } else {
+            return res.status(200).json(Object.fromEntries(currBooksByTitle));
+        }
+    } catch (error) {
+        return res.status(500).json({message: "Unable to fetch book by title" + error});
+    }
+    // res.send(JSON.stringify(Object.fromEntries(finalDetails), null, 4))
 });
 
 //  Get book review
